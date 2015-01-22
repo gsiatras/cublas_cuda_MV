@@ -45,7 +45,7 @@ int main(int argc, char ** argv) {
 	}
 	else {
 		fprintf(stderr, "Insufficient command line arguments!\n");
-		fprintf(stderr, "USAGE: main <matrixHeight> <matrixWidth>\n");
+		fprintf(stderr, "USAGE: main <M> <N>\n");
 		exit(-1);
 	}
 
@@ -53,7 +53,7 @@ int main(int argc, char ** argv) {
 	double * h_A, * h_B, * h_C;
 	double * d_A, * d_B, * d_C;
 	const double alf = 1, bet = 0;
-	float deltaT = 0.0;
+	// float deltaT = 0.0;
 
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
@@ -64,7 +64,7 @@ int main(int argc, char ** argv) {
 	fprintf(stdout, "Using cublasSgemv() test running..\n");
 	status = cublasInit();
 	if (status != CUBLAS_STATUS_SUCCESS) {
-		cuberror_handler("CUBLAS initialization error\n");
+		cuberror_handler("!!!! CUBLAS initialization error\n");
 	}
 
     // Allocate host memory for the matrices
@@ -72,9 +72,9 @@ int main(int argc, char ** argv) {
     ((h_B = (double *) malloc(N * sizeof(h_B[0]))) != 0) ?
     ((h_C = (double *) malloc(M * sizeof(h_C[0]))) != 0) ?
     :
-    cuberror_handler("host memory allocation error (C)\n") :
-    cuberror_handler("host memory allocation error (B)\n") :
-    cuberror_handler("host memory allocation error (A)\n") ;
+    cuberror_handler("!!!! host memory allocation error (C)\n") :
+    cuberror_handler("!!!! host memory allocation error (B)\n") :
+    cuberror_handler("!!!! host memory allocation error (A)\n") ;
 
 	// Initialize matrix A and vector b with some values
 	// and also zero-ize c vector
@@ -102,9 +102,9 @@ int main(int argc, char ** argv) {
 	((status = cublasAlloc(N, sizeof(d_B[0]), (void**)&d_B)) == CUBLAS_STATUS_SUCCESS) ?
 	((status = cublasAlloc(M, sizeof(d_C[0]), (void**)&d_C)) == CUBLAS_STATUS_SUCCESS) ?
 	:
-	cuberror_handler("device memory allocation error (C)\n") :
-	cuberror_handler("device memory allocation error (B)\n") :
-	cuberror_handler("device memory allocation error (A)\n") ;
+	cuberror_handler("!!!! device memory allocation error (C)\n") :
+	cuberror_handler("!!!! device memory allocation error (B)\n") :
+	cuberror_handler("!!!! device memory allocation error (A)\n") ;
 
 
 	// Initialize the device matrices with the host matrices
@@ -112,9 +112,9 @@ int main(int argc, char ** argv) {
 	((status = cublasSetVector(N, sizeof(h_B[0]), h_B, 1, d_B, 1)) == CUBLAS_STATUS_SUCCESS) ?
 	((status = cublasSetVector(M, sizeof(h_C[0]), h_C, 1, d_C, 1)) == CUBLAS_STATUS_SUCCESS) ?
 	:
-	cuberror_handler("device access error (write C)\n") :
-	cuberror_handler("device access error (write B)\n") :
-	cuberror_handler("device access error (write A)\n") ;
+	cuberror_handler("!!!! device access error (write C)\n") :
+	cuberror_handler("!!!! device access error (write B)\n") :
+	cuberror_handler("!!!! device access error (write A)\n") ;
 
 	// Create a handle for CUBLAS
 	cublasHandle_t handle;
@@ -133,14 +133,14 @@ int main(int argc, char ** argv) {
 	cublasDestroy(handle);
 
 	if ((status = cublasGetError()) != CUBLAS_STATUS_SUCCESS) {
-		cuberror_handler("kernel execution error.\n");
+		cuberror_handler("!!!! kernel execution error.\n");
 		return EXIT_FAILURE;
 	}
 
 	// Read the result back
 	status = cublasGetVector(M, sizeof(h_C[0]), d_C, 1, h_C, 1);
 	if (status != CUBLAS_STATUS_SUCCESS) {
-		cuberror_handler("device access error (read C)\n");
+		cuberror_handler("!!!! device access error (read C)\n");
 	}
 	fprintf(stdout, "Final vector result: \n");
 	//print_data(h_C, M, 1);
@@ -163,11 +163,11 @@ int main(int argc, char ** argv) {
 	// Shutdown
 	status = cublasShutdown();
 	if (status != CUBLAS_STATUS_SUCCESS) {
-		cuberror_handler("shutdown error (A)\n");
+		cuberror_handler("!!!! shutdown error (A)\n");
 	}
 
-	fprintf(stdout, "\nPress ENTER to exit...\n");
-	getchar();
+	//fprintf(stdout, "\nPress ENTER to exit...\n");
+	//getchar();
 
 	return EXIT_SUCCESS;
 }

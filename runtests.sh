@@ -11,14 +11,20 @@ p3=~/partC/
 
 echo "Please wait while running tests.."
 
-exp[0]=$((cd "$p1" && make && ./main <<< "") 2>&1)
-exp[1]=$((cd "$p2" && ./makeit && ./main <<< "") 2>&1)
-exp[2]=$((cd "$p3" && ./makeit && ./main <<< "") 2>&1)
+while read n m; do
 
-printf "${green}PART A: ${normal}"
-printf "%s \n"  "${exp[0]}" | grep "Elapsed"
-printf "${blue}PART B: ${normal}" 
-printf "%s \n" "${exp[1]}" | grep "Elapsed"
-printf "${red}PART C: ${normal}"
-printf "%s \n" "${exp[2]}" | grep "Elapsed"
+	echo "------------- " "$n" "$m"
+
+	exp[0]=$((cd "$p1" && ./makeit && ./main "$n" "$m") 2>&1)
+	exp[1]=$((cd "$p2" && ./makeit && ./main "$n" "$m") 2>&1)
+	exp[2]=$((cd "$p3" && ./makeit && ./main "$n" "$m") 2>&1)
+
+	printf "${green}PART A: ${normal}"
+	printf "%s \n"  "${exp[0]}" | grep "Elapsed"
+	printf "${blue}PART B: ${normal}" 
+	printf "%s \n" "${exp[1]}" | grep "Elapsed"
+	printf "${red}PART C: ${normal}"
+	printf "%s \n"  "${exp[2]}" | grep "Elapsed"
+
+done < testsizes
 
