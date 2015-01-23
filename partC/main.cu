@@ -218,25 +218,19 @@ int main(int argc, char ** argv) {
 
 	// Create a handle for CUBLAS
 
+
+  dim3 threadsPerBlock(N/BLOCK_WIDTH + 1, M/BLOCK_HEIGHT + 1);
+  int blockCols = (int) ceil(N / (double) BLOCK_WIDTH);
+  int blockRows = (int) ceil(M / (double) BLOCK_HEIGHT);
+  dim3 dimBlock(BLOCK_HEIGHT);
+  dim3 dimGrid(blockCols, blockRows);
+  int sharedMem = 3 * sizeof (int) + BLOCK_WIDTH * sizeof (float);
+
 	cudaEventRecord(start);
 	// M h N? kai gt +1? http://prntscr.com/4zqiyd
-	//int numBlock = ((M-1)/THREADS_PER_BLOCK + 1)*((N-1)/THREADS_PER_BLOCK + 1);
 
-    dim3 threadsPerBlock(N/BLOCK_WIDTH + 1, M/BLOCK_HEIGHT + 1);
-    int blockCols = (int) ceil(N / (double) BLOCK_WIDTH);
-  	int blockRows = (int) ceil(M / (double) BLOCK_HEIGHT);
-  	dim3 dimBlock(BLOCK_HEIGHT);
-  	dim3 dimGrid(blockCols, blockRows);
-  	int sharedMem = 3 * sizeof (int) + BLOCK_WIDTH * sizeof (float);
-  	//h shared memory einai toso.
-  	MatMulKernel<<<dimGrid, dimBlock, sharedMem>>>(dev_c, dev_b, dev_a, M, N);
-
+  MatMulKernel<<<dimGrid, dimBlock, sharedMem>>>(dev_c, dev_b, dev_a, M, N);
 	//MVKernel_shm1_grammes <<< 80, threadsPerBlock >>> (dev_a, dev_b, dev_c);
-
-    err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        fprintf(stderr, "Error: %s \n", cudaGetErrorString(err));
-    }
 
 	cudaEventRecord(stop);
 	cudaEventSynchronize(stop);
@@ -256,7 +250,7 @@ int main(int argc, char ** argv) {
 	  for (double i = 0; i < M; i++) {
 	  fprintf(stdout, "%d ", h_b[i]);
 	  }*/
-
+ 
 	fprintf(stdout, "\nvector c: ");
 	for (int i = 0; i < M; i++) {
 		fprintf(stdout, "%1.0f ", h_c[i]);
