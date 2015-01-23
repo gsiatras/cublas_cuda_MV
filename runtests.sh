@@ -9,22 +9,36 @@ p1=~/partA/
 p2=~/partB/
 p3=~/partC/
 
-echo "Please wait while running tests.."
+echo "Compiling binaries.."
 
-while read n m; do
+echo $(cd "$p1" && ./makeit)
+echo $(cd "$p2" && ./makeit)
+echo $(cd "$p3" && ./makeit)
 
-	echo "------------- " "$n" "$m"
+echo "A long series of tests will run now.. Please wait!"
 
-	exp[0]=$((cd "$p1" && ./makeit && ./main "$n" "$m") 2>&1)
-	exp[1]=$((cd "$p2" && ./makeit && ./main "$n" "$m") 2>&1)
-	exp[2]=$((cd "$p3" && ./makeit && ./main "$n" "$m") 2>&1)
+while read m n; do
 
-	printf "${green}PART A: ${normal}"
-	printf "%s \n"  "${exp[0]}" | grep "Elapsed"
-	printf "${blue}PART B: ${normal}" 
-	printf "%s \n" "${exp[1]}" | grep "Elapsed"
-	printf "${red}PART C: ${normal}"
-	printf "%s \n"  "${exp[2]}" | grep "Elapsed"
+    echo -e "\n------------- M="$m" N="$n", 3 iterations -------------"
 
-done < testsizes
+	#exp[0]=$((cd "$p1" && ./makeit && ./main "$m" "$n") 2>&1)
+	#exp[1]=$((cd "$p2" && ./makeit && ./main "$m" "$n") 2>&1)
+	#exp[2]=$((cd "$p3" && ./makeit && ./main "$m" "$n") 2>&1)
+
+    printf "${green}PART A: ${normal} | ${blue}PART B: ${normal} | ${red}PART C: ${normal}"
+    
+    for iter in {1..3};
+    do
+        exp[0]=$((./main "$m" "$n") 2>&1)
+        exp[1]=$((./main "$m" "$n") 2>&1)
+        exp[2]=$((./main "$m" "$n") 2>&1)
+
+        printf "%s, "  "${exp[0]}" | grep -iF "Elapsed" | awk '{print $5 " " $6}'
+        # printf "${blue}PART B: ${normal}" 
+        printf "%s, " "${exp[1]}" | grep -iF "Elapsed" | awk '{print $5 " " $6}'
+        # printf "${red}PART C: ${normal}"
+        printf "%s"  "${exp[2]}" | grep -iF "Elapsed" | awk '{print $5 " " $6}'
+    done
+
+done < expsizes
 
