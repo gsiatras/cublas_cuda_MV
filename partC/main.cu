@@ -92,58 +92,6 @@ __global__ void MatMulKernel(double *out, double *in, double *a, const int matri
   
 }
 
-/*
-__global__ void MVKernel_shm1_grammes(double * A, double * b, double * c) {
-
-    __shared__ unsigned int blockElt;   
-    __shared__ int blockxInd;
-    __shared__ int blockyInd;
-    __shared__ double b_shared[BLOCK_WIDTH];
-
-	
-    if (threadIdx.x == 0) {
-		//cuPrintf("\n1st thread initialized\n");    
-
-        if ((blockIdx.x + 1) * BLOCK_WIDTH <= N) {
-            blockElt = BLOCK_WIDTH;
-        }
-        else {
-            blockElt = N % BLOCK_WIDTH;
-        }
-
-        blockxInd = blockIdx.x * BLOCK_WIDTH;
-        blockyInd = blockIdx.y * BLOCK_HEIGHT;
-	    //cuPrintf("\n\n");
-    }
-
-    __syncthreads();
-    // 8eloume sync gia na diavasoun ola ta threads ta idia data pou eginan init
-
-    if (threadIdx.x < blockElt) {		
-        b_shared[threadIdx.x] = b[blockxInd + threadIdx.x];
-    }
-
-	__syncthreads();
-	// kanoume init th shared memory opote pali sync gia na to doune swsta ola ta threads tou block
-
-    double threadSum = 0;
-    int threadyInd = blockyInd + threadIdx.x;
-
-    if (threadyInd < M) {
-        for (int i = 0; i < blockElt; i++) {
-        	//cuPrintf("threadxInd %d A %1.0f\n", threadxInd, A[(threadxInd) * M + (blockyInd + i)]);  
-            threadSum += b_shared[i] * A[(blockxInd + i) * M + threadyInd]; 
-        }
-	}
-    
-    __syncthreads();
-
-    if (threadyInd < M) {
-    	cuPrintf("%d %1.0f\n",threadyInd, threadSum);
-    	atomicAdd(&c[threadyInd], threadSum/1.0);
-    }
-}*/
-
 int main(int argc, char ** argv) {
   int M, N;
   if (argc == 3){
@@ -156,8 +104,8 @@ int main(int argc, char ** argv) {
     exit(-1);
   }
 
-	double * h_A, * h_b, * h_c; 		// host copies of a, b, c
-	double * dev_a, * dev_b, * dev_c; 	// device copies of a, b, c
+	double * h_A, * h_b, * h_c; 		  // host copies of a, b, c
+	double * dev_a, * dev_b, * dev_c; // device copies of a, b, c
 
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
@@ -196,27 +144,24 @@ int main(int argc, char ** argv) {
 	}
 
 	cudaMemcpy(dev_a, h_A, M * N * sizeof(double), cudaMemcpyHostToDevice);
-    cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        fprintf(stderr, "Error: %s \n", cudaGetErrorString(err));
-    }
+  cudaError_t err = cudaGetLastError();
+  if (err != cudaSuccess) {
+      fprintf(stderr, "Error: %s \n", cudaGetErrorString(err));
+  }
 
 	cudaMemcpy(dev_b, h_b, N * sizeof(double), cudaMemcpyHostToDevice);
-    err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        fprintf(stderr, "Error: %s \n", cudaGetErrorString(err));
-    }
+  err = cudaGetLastError();
+  if (err != cudaSuccess) {
+      fprintf(stderr, "Error: %s \n", cudaGetErrorString(err));
+  }
 
 	cudaMemcpy(dev_c, h_c, M * sizeof(double), cudaMemcpyHostToDevice);
-
-    err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        fprintf(stderr, "Error: %s \n", cudaGetErrorString(err));
-    }
+  err = cudaGetLastError();
+  if (err != cudaSuccess) {
+      fprintf(stderr, "Error: %s \n", cudaGetErrorString(err));
+  }
 
 	cudaPrintfInit ();
-
-	// Create a handle for CUBLAS
 
 
   dim3 threadsPerBlock(N/BLOCK_WIDTH + 1, M/BLOCK_HEIGHT + 1);
@@ -238,8 +183,6 @@ int main(int argc, char ** argv) {
 	float milliseconds = 0;
 	cudaEventElapsedTime(&milliseconds, start, stop);
 	fprintf(stdout, "Done.. Elapsed Time = %6.8f msecs\n", milliseconds);
-	// Destroy the handle
-
 
 	cudaPrintfDisplay (stdout, true);
 	cudaPrintfEnd ();
@@ -250,7 +193,7 @@ int main(int argc, char ** argv) {
 	  for (double i = 0; i < M; i++) {
 	  fprintf(stdout, "%d ", h_b[i]);
 	  }*/
- 
+  
 	fprintf(stdout, "\nvector c: ");
 	for (int i = 0; i < M; i++) {
 		fprintf(stdout, "%1.0f ", h_c[i]);
@@ -264,8 +207,8 @@ int main(int argc, char ** argv) {
 	// fprintf(stdout, "\ndev_c: %1.0f \n\n", dev_c);
 	//fprintf(stdout, "\n** Results ** %d %d %d %d \n", h_c[0], h_c[1], h_c[2], h_c[3]);
 
-	//free(h_A); free(h_b); free(h_c);
-	//cudaFree(dev_a); cudaFree(dev_b); cudaFree(dev_c);
+	free(h_A); free(h_b); free(h_c);
+	cudaFree(dev_a); cudaFree(dev_b); cudaFree(dev_c);
 
 	return 0;
 }
