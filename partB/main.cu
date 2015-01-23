@@ -90,7 +90,7 @@ int main(int argc, char ** argv) {
 	for (int i = 0; i < M; i++) {
 		h_C[i] = 0;
 	}
-
+ 
 	//print_data(h_A, M, N);
 	//print_data(h_B, N, 1);
 
