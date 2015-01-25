@@ -14,7 +14,6 @@
 #include "AuxFuncs.h"
 
 #define BLOCK_HEIGHT 512
-#define BLOCK_WIDTH 64
 
 __device__ double atomicAdd(double* address, double val)
 {
@@ -25,13 +24,13 @@ __device__ double atomicAdd(double* address, double val)
 		assumed = old;
 		old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val +  __longlong_as_double(assumed)));
 
-	// Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
+		// Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
 	} while (assumed != old);
 
 	return __longlong_as_double(old);
 }
 
-__global__ void MultMVOptimizedKernel(double *c, double *b_input, double *A, const int M, const int N) {
+__global__ void MultMVOptimizedKernel(double *c, double *b_input, double *A, const int M, const int N, const int BLOCK_WIDTH) {
 	// get variables for loop
 	// copy section of b into shared mem
 	// go through the threads vertically and sum them into a variable
@@ -48,7 +47,7 @@ __global__ void MultMVOptimizedKernel(double *c, double *b_input, double *A, con
 	__shared__ int blockElt;
 	__shared__ int blockxInd;
 	__shared__ int blockyInd;
-	
+
 	if (threadIdx.x == 0) {
 		if ((blockIdx.x + 1) * BLOCK_WIDTH <= N){
 			blockElt = BLOCK_WIDTH;
@@ -64,7 +63,7 @@ __global__ void MultMVOptimizedKernel(double *c, double *b_input, double *A, con
 
 	// copy section of b into shared mem
 	// use the first BLOCK_WIDTH of thread
-	__shared__ double b[BLOCK_WIDTH];
+	extern	__shared__ double b[];
 
 	if (threadIdx.x < blockElt) {
 		b[threadIdx.x] = b_input[blockxInd + threadIdx.x];
@@ -80,12 +79,12 @@ __global__ void MultMVOptimizedKernel(double *c, double *b_input, double *A, con
 	if (threadyInd < M) {
 		// go through the threads vertically and sum them into a variable
 		for (int i = 0; i < blockElt; i++)
-		// A col index   : blockIdx.x * BLOCK_WIDTH + i : blockxInd + i
-		// A row index  : blockIdx.y * BLOCK_HEIGHT + threadIdx.x : blockyInd + threadIdx.x : threadyInd
-		// B index : b[i]
+			// A col index   : blockIdx.x * BLOCK_WIDTH + i : blockxInd + i
+			// A row index  : blockIdx.y * BLOCK_HEIGHT + threadIdx.x : blockyInd + threadIdx.x : threadyInd
+			// B index : b[i]
 
-		// cSum = B index * ( A col index * M + A row index)
-		cSum += b[i] * A[(blockxInd + i) * (M) + (threadyInd)];
+			// cSum = B index * ( A col index * M + A row index)
+			cSum += b[i] * A[(blockxInd + i) * (M) + (threadyInd)];
 		//printf("csum = %f\n", cSum);
 
 		// atomic add these variables to the corresponding c index
@@ -95,6 +94,8 @@ __global__ void MultMVOptimizedKernel(double *c, double *b_input, double *A, con
 
 int main(int argc, char ** argv) {
 	int M, N;
+	int BLOCK_WIDTH = 32;
+	
 	// init the seed with current local time
 	srand(time(NULL));
 
@@ -109,6 +110,19 @@ int main(int argc, char ** argv) {
 		exit(-1);
 	}
 
+	if (N <= 128)
+		BLOCK_WIDTH = 32;
+	else if (N <= 256)
+		BLOCK_WIDTH = 64;
+	else if (N <= 512)
+		BLOCK_WIDTH = 128;
+	else if (N <= 1024)
+		BLOCK_WIDTH = 224;
+	else if (N <= 2048)
+		BLOCK_WIDTH = 416;
+	else
+		BLOCK_WIDTH = 512;
+
 	double * h_A, * h_b, * h_c; // host copies of a, b, c
 	double * d_A, * d_b, * d_c; // device copies of a, b, c
 
@@ -118,12 +132,12 @@ int main(int argc, char ** argv) {
 
 	// Allocate host memory for the matrix and the vectors
 	((h_A = (double *) malloc(M * N * sizeof(double))) != 0) ?
-	((h_b = (double *) malloc(N * sizeof(double))) != 0) ?
-	((h_c = (double *) malloc(M * sizeof(double))) != 0) ?
-	:
-	_error_handler("host memory allocation error (C)\n") :
-	_error_handler("host memory allocation error (B)\n") :
-	_error_handler("host memory allocation error (A)\n") ;
+		((h_b = (double *) malloc(N * sizeof(double))) != 0) ?
+		((h_c = (double *) malloc(M * sizeof(double))) != 0) ?
+		:
+		_error_handler("host memory allocation error (C)\n") :
+		_error_handler("host memory allocation error (B)\n") :
+		_error_handler("host memory allocation error (A)\n") ;
 
 	// Allocate device memory for the matrix and the vectors
 	cudaMalloc((void **) &d_A, M * N * sizeof(double));
@@ -153,13 +167,13 @@ int main(int argc, char ** argv) {
 	int blockCols = (int) ceil(N / (double)BLOCK_WIDTH);
 	int blockRows = (int) ceil(M / (double)BLOCK_HEIGHT);
 	int sharedMem = 3 * sizeof(int) + BLOCK_WIDTH * sizeof(double);
-	
+
 	dim3 dimBlock(BLOCK_HEIGHT);
 	dim3 dimGrid(blockCols, blockRows);
 
 	// Run kernel and measure the time needed
 	cudaEventRecord(start);
-	MultMVOptimizedKernel<<<dimGrid, dimBlock, sharedMem>>>(d_c, d_b, d_A, M, N);
+	MultMVOptimizedKernel<<<dimGrid, dimBlock, sharedMem>>>(d_c, d_b, d_A, M, N, BLOCK_WIDTH);
 	cudaEventRecord(stop);
 	cudaEventSynchronize(stop);
 
@@ -169,18 +183,18 @@ int main(int argc, char ** argv) {
 
 	// Get results from the device
 	cudaMemcpy(h_c, d_c, M * sizeof(double), cudaMemcpyDeviceToHost);
-
+	/*
 	fprintf(stdout, "Result: \n");
 	for (int i = 0; i < M; i++) {
-		fprintf(stdout, "%6.8f ", h_c[i]);
+			fprintf(stdout, "%6.8f ", h_c[i]);
 	}
 	fprintf(stdout, "\n");
-
-	/*fprintf(stdout, "\n A: ");
-	for (int i = 0; i < 2*N; i++) {
-		fprintf(stdout, "%1.0f ", h_A[i]);
-	}*/
-
+	
+	fprintf(stdout, "\n A: ");
+	  for (int i = 0; i < 2*N; i++) {
+	  fprintf(stdout, "%1.0f ", h_A[i]);
+	  }
+	*/
 	// Free host memory
 	free(h_A); free(h_b); free(h_c);
 	// Free GPU memory
