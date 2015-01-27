@@ -31,23 +31,11 @@ __device__ double atomicAdd(double* address, double val)
 }
 
 __global__ void MultMVOptimizedKernel(double *c, double *b_input, double *A, const int M, const int N, const int BLOCK_WIDTH) {
-	// get variables for loop
-	// copy section of b into shared mem
-	// go through the threads vertically and sum them into a variable
-	// atomic add these variables to the corresponding c index
-
-	// looping is happening horizontally on the matrix
-	// BLOCK_WIDTH is again horizontal
-	// BLOCK_HEIGHT is going vertical
-	// n / BLOCK_WIDTH blocks horizontally
-	// m / BLOCK_HEIGHT block vertically
-
-	// get variables for loop
-	// variable for loop length: blockEltHeight
-	__shared__ int blockElt;
+	__shared__ int blockElt;  // holds the current block width
 	__shared__ int blockxInd;
 	__shared__ int blockyInd;
 
+	// Run this only 1 time
 	if (threadIdx.x == 0) {
 		if ((blockIdx.x + 1) * BLOCK_WIDTH <= N){
 			blockElt = BLOCK_WIDTH;
@@ -61,33 +49,26 @@ __global__ void MultMVOptimizedKernel(double *c, double *b_input, double *A, con
 
 	__syncthreads();
 
-	// copy section of b into shared mem
-	// use the first BLOCK_WIDTH of thread
 	extern	__shared__ double b[];
 
+	// Copy part of b into shared mem
 	if (threadIdx.x < blockElt) {
 		b[threadIdx.x] = b_input[blockxInd + threadIdx.x];
 	}
 
 	__syncthreads();
 
-	// summing variable
 	double cSum = (double) 0;
 	int threadyInd = blockyInd + threadIdx.x;
 
-	// make sure we are inside the matrix verticallly
+	// Access matrix verticallly
 	if (threadyInd < M) {
-		// go through the threads vertically and sum them into a variable
-		for (int i = 0; i < blockElt; i++)
-			// A col index   : blockIdx.x * BLOCK_WIDTH + i : blockxInd + i
-			// A row index  : blockIdx.y * BLOCK_HEIGHT + threadIdx.x : blockyInd + threadIdx.x : threadyInd
-			// B index : b[i]
-
-			// cSum = B index * ( A col index * M + A row index)
+		// For every element in the block row
+		for (int i = 0; i < blockElt; i++){
 			cSum += b[i] * A[(blockxInd + i) * (M) + (threadyInd)];
-		//printf("csum = %f\n", cSum);
+		}
 
-		// atomic add these variables to the corresponding c index
+		// Atomic add the temp sum to the c vector
 		atomicAdd(c + threadyInd, cSum);
 	}
 }
@@ -110,6 +91,7 @@ int main(int argc, char ** argv) {
 		exit(-1);
 	}
 
+	// Calculate "dynamic" BLOCK_WIDTH
 	if (N <= 128)
 		BLOCK_WIDTH = 32;
 	else if (N <= 256)
@@ -183,18 +165,7 @@ int main(int argc, char ** argv) {
 
 	// Get results from the device
 	cudaMemcpy(h_c, d_c, M * sizeof(double), cudaMemcpyDeviceToHost);
-	/*
-	fprintf(stdout, "Result: \n");
-	for (int i = 0; i < M; i++) {
-			fprintf(stdout, "%6.8f ", h_c[i]);
-	}
-	fprintf(stdout, "\n");
-	
-	fprintf(stdout, "\n A: ");
-	  for (int i = 0; i < 2*N; i++) {
-	  fprintf(stdout, "%1.0f ", h_A[i]);
-	  }
-	*/
+
 	// Free host memory
 	free(h_A); free(h_b); free(h_c);
 	// Free GPU memory

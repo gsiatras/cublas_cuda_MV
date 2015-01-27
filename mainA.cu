@@ -115,21 +115,10 @@ int main(int argc, char ** argv) {
 	}
 
 	// Read the result back
-	status = cublasGetVector(M, sizeof(h_c[0]), d_c, 1, h_c, 1);
+	status = cublasGetVector(M, sizeof(double), d_c, 1, h_c, 1);
 	if (status != CUBLAS_STATUS_SUCCESS) {
 		_error_handler("device access error (read C)\n");
 	}
-
-	fprintf(stdout, "Result: \n");
-	for (int i = 0; i < M; i++) {
-		fprintf(stdout, "%6.8f ", h_c[i]);
-	}
-	fprintf(stdout, "\n");
-
-	/*fprintf(stdout, "\n A: ");
-	for (int i = 0; i < 2*N; i++) {
-		fprintf(stdout, "%1.0f ", h_A[i]);
-	}*/
 
 	// Free host memory
 	free(h_A); free(h_b); free(h_c);

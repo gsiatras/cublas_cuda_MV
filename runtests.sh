@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# for verbose mode: export $RUN_EXPERIMENTS_VB=1
 red=$(tput setaf 1)
 green=$(tput setaf 2)
 blue=$(tput setaf 4)
